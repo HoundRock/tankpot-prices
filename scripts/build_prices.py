@@ -143,8 +143,15 @@ def write(data):
     os.makedirs(OUT_DIR, exist_ok=True)
     now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     index = {"generated": now, "countries": {}}
+    newest_overall = max(max(d) for d in data.values())
     for cc, by_date in sorted(data.items()):
         dates = sorted(by_date)[-KEEP_WEEKS:]
+        if (newest_overall - dates[-1]).days > 365:
+            print(f"Skipping {cc}: no figures since {dates[-1]}")  # e.g. the UK after Brexit
+            stale = os.path.join(OUT_DIR, f"{cc}.json")
+            if os.path.exists(stale):
+                os.remove(stale)
+            continue
         weeks = [[d.isoformat()] + [by_date[d].get(c) for c in COLUMNS] for d in dates]
         doc = {
             "country": cc,
