@@ -1,0 +1,41 @@
+name: Update fuel prices
+
+# The EU Weekly Oil Bulletin comes out once a week; checking daily means new
+# figures reach the app within a day of publication.
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["scripts/**", ".github/workflows/update.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install openpyxl==3.1.5
+      - name: Build price files
+        run: python scripts/build_prices.py
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add eu
+          if git diff --cached --quiet; then
+            echo "No new prices."
+          else
+            git commit -m "Prices updated $(date -u +%Y-%m-%d)"
+            git push
+          fi
